@@ -1,6 +1,16 @@
-#AUTOLAPS - Version 2.0
+# Created by packet for https://www.parceu.com
 
-#Created by packet
+# Deploys and configures LAPS in a domain enviornment
+# Must be run on a DC
+
+# Note: Non-functional due to GPO download source deletion.
+
+#========#
+# ^^^^^^ #
+# README #
+#========#
+
+########################################################################################################################################################################################################################
 
 
 #Detects if the script is run in admin context, if it is not, the script will exit after letting the user know.
@@ -71,13 +81,13 @@ $MainMenu01 =
     if ($MainMenuFunction01 -eq "2")
     {
         #Detects Group policies that follow the scripts naming convention
-        $ExistingLAPS01 = Get-GPO -All | Where-Object {$_.displayname -like "ITR_AutoLAPS_*"}
+        $ExistingLAPS01 = Get-GPO -All | Where-Object {$_.displayname -like "Parceu_AutoLAPS_*"}
         
         #If any are found, they will be removed
         if ($ExistingLAPS01 -ne $null)
         {
-            Remove-GPO -Name ITR_AutoLAPS_DeviceInstallation
-            Remove-GPO -Name ITR_AutoLAPS_Configuration
+            Remove-GPO -Name Parceu_AutoLAPS_DeviceInstallation
+            Remove-GPO -Name Parceu_AutoLAPS_Configuration
         }
 
         #If none are found, a variable will be set for later
@@ -87,12 +97,12 @@ $MainMenu01 =
         }
 
         #Detects the generated folder
-        $ExistingLAPS02 = Test-Path -Path C:\ITR_AutoLAPS\
+        $ExistingLAPS02 = Test-Path -Path C:\Parceu_AutoLAPS\
 
         #If found, it will be removed
         if ($ExistingLAPS02 -eq $true)
         {
-            Remove-Item –path C:\ITR_AutoLAPS\ –recurse -Force
+            Remove-Item –path C:\Parceu_AutoLAPS\ –recurse -Force
         }
 
         #If not found, a variable will be set for later
@@ -132,24 +142,24 @@ cls
 #===================================#
 
 #Creates the folder where the LAPS files will be stored
-New-Item -ItemType "directory" -Path "C:\ITR_AutoLAPS"
+New-Item -ItemType "directory" -Path "C:\Parceu_AutoLAPS"
 
 #Creates the folder where the LAPS GPO files will be temporarily stored
-New-Item -ItemType "directory" -Path "C:\ITR_AutoLAPSInstall"
+New-Item -ItemType "directory" -Path "C:\Parceu_AutoLAPSInstall"
 
 #Downloads the LAPS MSI installer to the previously generated AutoLAPS folder
-Invoke-WebRequest -Uri https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -OutFile C:\ITR_AutoLAPS\LAPS.x64.msi
+Invoke-WebRequest -Uri https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -OutFile C:\Parceu_AutoLAPS\LAPS.x64.msi
 
 #Downloads the AutoLAPS GPOs to the temporary AutoLAPS folder
 $GPOURL = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9naXRodWIuY29tL3Bja3RzL1ByaW50TmlnaHRtYXJlV29ya2Fyb3VuZC9yYXcvbWFpbi9HUE9zLnppcA=="))
-Invoke-WebRequest -Uri $GPOURL -OutFile C:\ITR_AutoLAPSInstall\GPOs.zip
+Invoke-WebRequest -Uri $GPOURL -OutFile C:\Parceu_AutoLAPSInstall\GPOs.zip
 sleep 1
  
 #Installs LAPS including the management tools
-msiexec.exe /i C:\ITR_AutoLAPS\LAPS.x64.msi ADDLOCAL=CSE,Management,Management.UI,Management.PS,Management.ADMX /quiet
+msiexec.exe /i C:\Parceu_AutoLAPS\LAPS.x64.msi ADDLOCAL=CSE,Management,Management.UI,Management.PS,Management.ADMX /quiet
 
 #Makes the AutoLAPS folder shared and allowing everyone to have read access. The only content of this folder is the publicly-available LAPS msi installer file.
-New-SmbShare -Name LAPS -Path C:\ITR_AutoLAPS | Grant-SmbShareAccess -AccountName Everyone -AccessRight Read
+New-SmbShare -Name LAPS -Path C:\Parceu_AutoLAPS | Grant-SmbShareAccess -AccountName Everyone -AccessRight Read
 
 #Imports the LAPS module for powershell. This isn't done until this point due to being dependent on an installation of the management tools.
 Import-module AdmPwd.PS
@@ -160,18 +170,18 @@ Update-AdmPwdADSchema
 #Imports the GPOs and links them at domain root and every inheritence blocked OU.
 #The links will also be enforced.
 $Partition01 = Get-ADDomainController | Select DefaultPartition
-$GPOSource01 = "C:\ITR_AutoLAPS\"
-import-gpo -BackupId 6A1B280F-82A9-484D-AE16-3D278EDD65E7 -TargetName ITR_AutoLAPS_DeviceInstallation -path $GPOSource01 -CreateIfNeeded
-import-gpo -BackupId FA0E159B-5892-4D0B-B6A1-90FABC0ED38B -TargetName ITR_AutoLAPS_Configuration -path $GPOSource01 -CreateIfNeeded
-Get-GPO -Name "PrintSpoolerDisable" | New-GPLink -Target $Partition01.DefaultPartition
-Get-GPO -Name "PrintSpoolerEnable" | New-GPLink -Target $Partition01.DefaultPartition
+$GPOSource01 = "C:\Parceu_AutoLAPS\"
+import-gpo -BackupId 6A1B280F-82A9-484D-AE16-3D278EDD65E7 -TargetName Parceu_AutoLAPS_DeviceInstallation -path $GPOSource01 -CreateIfNeeded
+import-gpo -BackupId FA0E159B-5892-4D0B-B6A1-90FABC0ED38B -TargetName Parceu_AutoLAPS_Configuration -path $GPOSource01 -CreateIfNeeded
+Get-GPO -Name "Parceu_AutoLAPS_Configuration" | New-GPLink -Target $Partition01.DefaultPartition
+Get-GPO -Name "Parceu_AutoLAPS_DeviceInstallation" | New-GPLink -Target $Partition01.DefaultPartition
 $Blocked01 = Get-ADOrganizationalUnit -Filter * | Get-GPInheritance | Where-Object {$_.GPOInheritanceBlocked} | select-object Path 
 Foreach ($B01 in $Blocked01) 
 {
-    New-GPLink -Name "ITR_AutoLAPS_Configuration" -Target $B01.Path
-    New-GPLink -Name "ITR_AutoLAPS_DeviceInstallation" -Target $B01.Path
-    Set-GPLink -Name "ITR_AutoLAPS_Configuration" -Enforced Yes -Target $B01.Path
-    Set-GPLink -Name "ITR_AutoLAPS_DeviceInstallation" -Enforced Yes -Target $B01.Path
+    New-GPLink -Name "Parceu_AutoLAPS_Configuration" -Target $B01.Path
+    New-GPLink -Name "Parceu_AutoLAPS_DeviceInstallation" -Target $B01.Path
+    Set-GPLink -Name "Parceu_AutoLAPS_Configuration" -Enforced Yes -Target $B01.Path
+    Set-GPLink -Name "Parceu_AutoLAPS_DeviceInstallation" -Enforced Yes -Target $B01.Path
 }
 
 #Sets permissions so that Domain Admins can read the password computers that LAPS is deployed to.
