@@ -1,5 +1,3 @@
-# Created by packet for https://www.parceu.com
-
 # Deploys and configures LAPS in a domain enviornment
 # Must be run on a DC
 
